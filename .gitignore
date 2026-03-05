@@ -6,6 +6,7 @@ errors.log
 
 # IDE and tool directories
 .mypy_cache/
+.aider*
 .vscode/
 .idea/
 
