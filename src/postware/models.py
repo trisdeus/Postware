@@ -12,16 +12,40 @@ Models defined:
     - PlatformPosts: Container for posts across X, LinkedIn, and Threads
     - GeneratedBundle: Complete generation output with metadata
     - GenerationRecord: Storage-equivalent record for history.json
+    - ProjectConfig: Project name and description
+    - AuthorConfig: Author biography
+    - LLMConfig: LLM provider, model, and optional base URL
+    - ScheduleConfig: Schedule time in HH:MM format
+    - AppConfig: Complete application configuration
+    - EnvConfig: Environment variables (credentials)
+    - PostwareError: Base exception class
+    - ConfigError: Configuration validation errors
+    - HistoryError: Base for history-related errors
+    - HistoryWriteError: History.json write failures
+    - GenerationError: Base for generation-related errors
+    - LLMCallError: LLM API call errors
+    - LLMOutputError: LLM output parsing/validation errors
+    - GenerationFailedError: Retry exhaustion errors
+    - DeliveryError: Base for delivery-related errors
+    - DeliveryCredentialError: Invalid Telegram credentials (401/400)
+    - DeliveryFailedError: Telegram delivery failures
 
 Constants defined:
     - PILLAR_SCHEDULE: Maps DayOfWeek → Pillar per PRD FR-003
     - PLATFORM_CHAR_LIMITS: Character limits per platform
     - MAX_HISTORY_RECORDS: Maximum records retained in history.json
+    - SUPPORTED_PROVIDERS: Valid LLM provider names
 """
 
+import re
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+
+# =============================================================================
+# ENUMS
+# =============================================================================
 
 
 class Pillar(str, Enum):
@@ -71,6 +95,11 @@ class DayOfWeek(str, Enum):
     FRI = "Fri"
     SAT = "Sat"
     SUN = "Sun"
+
+
+# =============================================================================
+# GENERATION MODELS
+# =============================================================================
 
 
 class PlatformPost(BaseModel):
@@ -212,6 +241,359 @@ class GenerationRecord(BaseModel):
 
 
 # =============================================================================
+# CONFIGURATION MODELS
+# =============================================================================
+
+
+class ProjectConfig(BaseModel):
+    """
+    Project configuration for content generation context.
+
+    Contains basic project information that is used to personalize
+    the generated content. This information is embedded in the LLM
+    prompt to ensure generated posts are relevant to the project.
+
+    Attributes:
+        name: The project name.
+        description: Brief description of the project.
+
+    Example:
+        >>> project = ProjectConfig(
+        ...     name="My SaaS App",
+        ...     description="A task management tool for remote teams"
+        ... )
+    """
+
+    name: str
+    description: str
+
+
+class AuthorConfig(BaseModel):
+    """
+    Author configuration for content generation context.
+
+    Contains author information that is used to personalize the
+    generated content and establish the author's voice and expertise.
+
+    Attributes:
+        bio: Author biography or professional background.
+
+    Example:
+        >>> author = AuthorConfig(
+        ...     bio="Full-stack developer building in public"
+        ... )
+    """
+
+    bio: str
+
+
+class LLMConfig(BaseModel):
+    """
+    LLM provider configuration.
+
+    Configures which LLM provider and model to use for content generation.
+    The provider must be one of the supported providers. For local models
+    (ollama, lmstudio, custom), a base_url can be specified.
+
+    Attributes:
+        provider: LLM provider name (must be in SUPPORTED_PROVIDERS).
+        model: Model identifier (e.g., "claude-3-opus-20240229").
+        base_url: Optional custom endpoint URL for local models.
+
+    Example:
+        >>> llm = LLMConfig(
+        ...     provider="anthropic",
+        ...     model="claude-3-opus-20240229"
+        ... )
+        >>> local_llm = LLMConfig(
+        ...     provider="ollama",
+        ...     model="llama2",
+        ...     base_url="http://localhost:11434"
+        ... )
+    """
+
+    provider: str
+    model: str
+    base_url: str | None = None
+
+    @field_validator("provider")
+    @classmethod
+    def validate_provider(cls, v: str) -> str:
+        """
+        Validate that the provider is in the supported providers list.
+
+        Args:
+            v: The provider name to validate.
+
+        Returns:
+            The validated provider name.
+
+        Raises:
+            ValueError: If the provider is not supported.
+        """
+        if v not in SUPPORTED_PROVIDERS:
+            raise ValueError(
+                f"Unsupported provider: {v}. "
+                f"Supported providers: {', '.join(SUPPORTED_PROVIDERS)}"
+            )
+        return v
+
+
+class ScheduleConfig(BaseModel):
+    """
+    Schedule configuration for automated content generation.
+
+    Configures when the scheduler should trigger content generation.
+    The time is specified in 24-hour HH:MM format.
+
+    Attributes:
+        time: Schedule time in HH:MM format (e.g., "08:00").
+
+    Example:
+        >>> schedule = ScheduleConfig(time="08:00")
+    """
+
+    time: str
+
+    @field_validator("time")
+    @classmethod
+    def validate_time_format(cls, v: str) -> str:
+        """
+        Validate that the time matches HH:MM format.
+
+        Args:
+            v: The time string to validate.
+
+        Returns:
+            The validated time string.
+
+        Raises:
+            ValueError: If the time format is invalid.
+        """
+        if not re.match(r"^(?:[01]\d|2[0-3]):[0-5]\d$", v):
+            raise ValueError(
+                f"Invalid time format: {v}. Expected HH:MM format (24-hour, e.g., '08:00')"
+            )
+        return v
+
+
+class AppConfig(BaseModel):
+    """
+    Complete application configuration.
+
+    Composes all configuration sections needed for the application to run.
+    This includes project details, author info, LLM settings, and schedule.
+
+    Attributes:
+        project: Project configuration.
+        author: Author configuration.
+        milestones: List of milestone descriptions for context.
+        changelog: List of recent changelog entries.
+        llm: LLM provider configuration.
+        schedule: Schedule configuration.
+
+    Example:
+        >>> config = AppConfig(
+        ...     project=ProjectConfig(name="My App", description="..."),
+        ...     author=AuthorConfig(bio="..."),
+        ...     milestones=["v1.0 launched", "100 users"],
+        ...     changelog=["Added dark mode", "Fixed login bug"],
+        ...     llm=LLMConfig(provider="anthropic", model="..."),
+        ...     schedule=ScheduleConfig(time="08:00"),
+        ... )
+    """
+
+    project: ProjectConfig
+    author: AuthorConfig
+    milestones: list[str]
+    changelog: list[str]
+    llm: LLMConfig
+    schedule: ScheduleConfig
+
+
+class EnvConfig(BaseModel):
+    """
+    Environment configuration containing credentials.
+
+    Contains all sensitive credentials needed for the application to
+    communicate with external services (Telegram and LLM providers).
+
+    Note: For v0, this uses plain strings. SecretStr upgrade is a v1 (P1) task.
+
+    Attributes:
+        telegram_bot_token: Telegram bot token from BotFather.
+        telegram_chat_id: Telegram chat ID for delivery.
+        api_keys: Mapping of provider names to API keys.
+
+    Example:
+        >>> env = EnvConfig(
+        ...     telegram_bot_token="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
+        ...     telegram_chat_id="123456789",
+        ...     api_keys={"anthropic": "sk-ant-...", "openai": "sk-..."},
+        ... )
+    """
+
+    telegram_bot_token: str
+    telegram_chat_id: str
+    api_keys: dict[str, str]
+
+
+# =============================================================================
+# ERROR HIERARCHY
+# =============================================================================
+
+
+class PostwareError(Exception):
+    """
+    Base exception class for all Postware errors.
+
+    All custom exceptions in the application inherit from this class.
+    Provides a consistent error interface across the application.
+
+    Attributes:
+        message: Human-readable error message.
+    """
+
+    def __init__(self, message: str) -> None:
+        """
+        Initialize the exception with a message.
+
+        Args:
+            message: Human-readable error description.
+        """
+        self.message = message
+        super().__init__(message)
+
+
+class ConfigError(PostwareError):
+    """
+    Configuration validation error.
+
+    Raised when configuration is invalid, missing, or fails validation.
+    This includes missing required fields, invalid values, or
+    configuration that doesn't meet business rules.
+    """
+
+    pass
+
+
+class LLMCallError(PostwareError):
+    """
+    LLM API call error.
+
+    Raised when an LLM API call fails. This wraps provider-specific
+    errors into a unified error type. Includes retry logic for
+    transient failures.
+    """
+
+    pass
+
+
+class DeliveryError(PostwareError):
+    """
+    Message delivery error.
+
+    Raised when Telegram message delivery fails. This includes
+    network errors, invalid credentials, and rate limiting.
+    """
+
+    pass
+
+
+class DeliveryCredentialError(DeliveryError):
+    """
+    Delivery credential error.
+
+    Raised when Telegram credentials are invalid (401/400 response).
+    These errors should not be retried as they indicate permanent
+    authentication failures.
+    """
+
+    pass
+
+
+class DeliveryFailedError(DeliveryError):
+    """
+    Telegram delivery failure error.
+
+    Raised when Telegram message delivery fails after all retry attempts.
+    This includes network errors, rate limiting, and other delivery issues
+    that are not related to invalid credentials.
+    """
+
+    pass
+
+
+class HistoryError(PostwareError):
+    """
+    History-related error.
+
+    Raised when operations on history.json fail, including read, write,
+    parse errors, or corruption recovery.
+    """
+
+    pass
+
+
+class HistoryWriteError(HistoryError):
+    """
+    History write error.
+
+    Raised when writing to history.json fails. This includes atomic
+    write failures, permission errors, and disk space issues.
+    """
+
+    pass
+
+
+class GenerationError(PostwareError):
+    """
+    Content generation error.
+
+    Base class for all content generation-related errors, including
+    LLM API calls, output parsing, and retry exhaustion.
+    """
+
+    pass
+
+
+class LLMCallError(GenerationError):
+    """
+    LLM API call error.
+
+    Raised when an LLM API call fails. This wraps provider-specific
+    errors into a unified error type. Includes retry logic for
+    transient failures.
+    """
+
+    pass
+
+
+class LLMOutputError(GenerationError):
+    """
+    LLM output parsing error.
+
+    Raised when the LLM response cannot be parsed or validated.
+    This includes malformed JSON, missing required fields, and
+    invalid content that doesn't match the expected schema.
+    """
+
+    pass
+
+
+class GenerationFailedError(GenerationError):
+    """
+    Generation failure error.
+
+    Raised when all retry attempts for content generation have been
+exhausted. This indicates a permanent failure that requires manual
+investigation.
+    """
+
+    pass
+
+
+# =============================================================================
 # CONSTANTS
 # =============================================================================
 
@@ -266,3 +648,29 @@ PLATFORM_CHAR_LIMITS: dict[str, int] = {
     "linkedin": 1500,
     "threads": 500,
 }
+
+# Supported LLM providers.
+#
+# This list defines all valid LLM provider names that can be used
+# in the LLMConfig.provider field. Providers are categorized as:
+# - Cloud providers: anthropic, openai, groq, google, deepseek, qwen, minimax, kimi, z.ai
+# - Local providers: ollama, lmstudio, custom
+#
+# The LLMConfig.provider field uses a field_validator to enforce
+# that only these values are accepted.
+SUPPORTED_PROVIDERS: tuple[str, ...] = (
+    # Cloud providers
+    "anthropic",
+    "openai",
+    "groq",
+    "google",
+    "deepseek",
+    "qwen",
+    "minimax",
+    "kimi",
+    "z.ai",
+    # Local providers
+    "ollama",
+    "lmstudio",
+    "custom",
+)
