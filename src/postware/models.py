@@ -477,53 +477,6 @@ class ConfigError(PostwareError):
     pass
 
 
-class LLMCallError(PostwareError):
-    """
-    LLM API call error.
-
-    Raised when an LLM API call fails. This wraps provider-specific
-    errors into a unified error type. Includes retry logic for
-    transient failures.
-    """
-
-    pass
-
-
-class DeliveryError(PostwareError):
-    """
-    Message delivery error.
-
-    Raised when Telegram message delivery fails. This includes
-    network errors, invalid credentials, and rate limiting.
-    """
-
-    pass
-
-
-class DeliveryCredentialError(DeliveryError):
-    """
-    Delivery credential error.
-
-    Raised when Telegram credentials are invalid (401/400 response).
-    These errors should not be retried as they indicate permanent
-    authentication failures.
-    """
-
-    pass
-
-
-class DeliveryFailedError(DeliveryError):
-    """
-    Telegram delivery failure error.
-
-    Raised when Telegram message delivery fails after all retry attempts.
-    This includes network errors, rate limiting, and other delivery issues
-    that are not related to invalid credentials.
-    """
-
-    pass
-
-
 class HistoryError(PostwareError):
     """
     History-related error.
@@ -586,8 +539,43 @@ class GenerationFailedError(GenerationError):
     Generation failure error.
 
     Raised when all retry attempts for content generation have been
-exhausted. This indicates a permanent failure that requires manual
-investigation.
+    exhausted. This indicates a permanent failure that requires manual
+    investigation.
+    """
+
+    pass
+
+
+class DeliveryError(PostwareError):
+    """
+    Message delivery error.
+
+    Raised when Telegram message delivery fails. This includes
+    network errors, invalid credentials, and rate limiting.
+    """
+
+    pass
+
+
+class DeliveryCredentialError(DeliveryError):
+    """
+    Delivery credential error.
+
+    Raised when Telegram credentials are invalid (401/400 response).
+    These errors should not be retried as they indicate permanent
+    authentication failures.
+    """
+
+    pass
+
+
+class DeliveryFailedError(DeliveryError):
+    """
+    Telegram delivery failure error.
+
+    Raised when Telegram message delivery fails after all retry attempts.
+    This includes network errors, rate limiting, and other delivery issues
+    that are not related to invalid credentials.
     """
 
     pass
