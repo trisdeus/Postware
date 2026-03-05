@@ -16,6 +16,7 @@ Models defined:
 Constants defined:
     - PILLAR_SCHEDULE: Maps DayOfWeek → Pillar per PRD FR-003
     - PLATFORM_CHAR_LIMITS: Character limits per platform
+    - MAX_HISTORY_RECORDS: Maximum records retained in history.json
 """
 
 from enum import Enum
@@ -213,6 +214,19 @@ class GenerationRecord(BaseModel):
 # =============================================================================
 # CONSTANTS
 # =============================================================================
+
+# Maximum number of records retained in history.json.
+#
+# Per AGENTS.md and implementation plan, the history file is capped at 30
+# records to support pillar rotation, promotional ratio tracking, and topic
+# deduplication while keeping the file size manageable. The save() function
+# in history.py enforces this invariant by pruning the oldest records when
+# the limit is exceeded.
+#
+# This constant is used by:
+# - history.py save() to prune records before writing
+# - Tests to verify the pruning invariant (T-05)
+MAX_HISTORY_RECORDS: int = 30
 
 # Weekly pillar schedule mapping days to content pillars.
 #
