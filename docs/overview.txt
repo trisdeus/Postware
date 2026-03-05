@@ -1,0 +1,334 @@
+1. PROJECT OVERVIEW
+   Project Name: Postware
+   One-Line Description: A Python CLI tool that generates daily platform-tailored social media posts for developers building in public and delivers them via Telegram.
+   Product Category: Internal tool/admin system (CLI application)
+   Project Type: New product
+   Domain/Industry: Developer tools / Social media content automation
+   Current State: Greenfield — no existing system
+
+2. PROBLEM STATEMENT
+   Problem: Solo developers building software projects in public need to maintain a consistent social media presence across X (Twitter), LinkedIn, and Threads, but crafting daily platform-optimized posts is time-consuming and pulls focus from building.
+   Who has this problem: Solo developers, indie hackers, and founders who are building software projects in public and want to grow an audience while shipping product.
+   Current workaround: Manually writing posts for each platform daily, often resulting in inconsistent posting cadence, repetitive content, or skipped days.
+   Impact of not solving: Inconsistent social media presence leads to slower audience growth, missed community engagement opportunities, and reduced visibility for the project being built.
+
+3. USERS & PERSONAS
+   User Type 1:
+     Role/Label: Solo Developer (single-user tool)
+     Description: A solo software developer or indie hacker who is actively building a software project in public. They are technical, comfortable with CLI tools, and have accounts on X, LinkedIn, and Threads.
+     Primary Goal: Receive a daily bundle of three platform-optimized social media posts in Telegram that they can copy and manually publish, without spending time writing content.
+     Access Level: Full access — sole user of the tool with access to all CLI commands, bot commands, and configuration.
+     Frequency of Use: Daily
+
+4. CORE FEATURES & FUNCTIONAL REQUIREMENTS
+
+   Feature 1:
+     Feature Name: Content Generation Engine
+     Description: Generates three platform-specific social media posts (X, LinkedIn, Threads) using an LLM, following a defined content strategy with five weighted content pillars, platform formatting rules, a weekly schedule, and an 80/20 value-to-promotion ratio.
+     User(s): Solo Developer
+     Priority: Must-have
+     Input(s): Project context from config.yaml (project details, author info, milestones, changelog, LLM settings), post history from history.json, current day of week
+     Output(s)/Result: Three platform-optimized posts (one each for X, LinkedIn, Threads) with pillar label, format type, and image suggestion per post
+     Business Rules:
+       - Content Pillars & Weights: P1 Build in Public (30%) · P2 Teaching (25%) · P3 Opinions (15%) · P4 Data & Results (15%) · P5 Community (15%)
+       - Weekly Schedule: Mon → P1 Build in Public · Tue → P2 Teaching · Wed → P3 Opinions · Thu → P4 Data & Results · Fri → P1 Build in Public · Sat → P5 Community · Sun → P2 Teaching
+       - 80/20 Rule: 80% of posts must be value-driven (educational, insightful, community-oriented); 20% may be promotional (product mentions, CTAs, launch updates). Ratio is calculated over a rolling 14-day window from history.json.
+       - Platform-Specific Formatting Rules:
+           X (Twitter): ≤280 characters, casual/witty tone, 1–3 hashtags, no inline links
+           LinkedIn: ≤1,500 characters, professional/insightful tone, 3–5 hashtags, links allowed
+           Threads: ≤500 characters, conversational tone, 0–2 hashtags, no links
+       - Before generating, the engine must load history.json, check recent pillar usage for rotation, calculate current promotional ratio, and use summaries of recent posts as deduplication context in the LLM prompt.
+       - After successful generation, append the new posts' summary (date, pillar, platform texts, promotional flag) to history.json.
+     Edge Cases:
+       - history.json does not exist → create with default empty structure and proceed
+       - Promotional ratio already at or above 20% → force value-driven content regardless of pillar
+       - config.yaml missing required fields → exit with descriptive error message listing missing fields
+       - LLM returns malformed or incomplete output → retry up to 3 times with exponential backoff; on final failure log to errors.log and exit with non-zero status
+
+   Feature 2:
+     Feature Name: Post History & Deduplication (File-based)
+     Description: Manages a lightweight JSON file (history.json) that tracks recent generation history to enable smart pillar rotation, promotional ratio enforcement, and topic deduplication.
+     User(s): Solo Developer (indirect — the system uses it automatically)
+     Priority: Must-have
+     Input(s): New post data after each generation run
+     Output(s)/Result: Updated history.json with appended entry; query methods for pillar rotation state, promo ratio, and deduplication context
+     Business Rules:
+       - Tracks: recent pillars used, promotional post count in last 14 days, summaries of last 30 generated posts
+       - File location: project root or data/ folder
+       - On load failure (corrupt file) → back up corrupt file, create fresh history.json, log warning
+       - No SQLite or any database library — JSON file only
+     Edge Cases:
+       - history.json grows very large → only retain last 30 entries; older entries are pruned on save
+       - Concurrent access (unlikely in single-user CLI) → not addressed; single-process assumption
+
+   Feature 3:
+     Feature Name: Telegram Delivery
+     Description: Sends the generated daily post bundle to the user's Telegram chat via a Telegram Bot as a single formatted message.
+     User(s): Solo Developer
+     Priority: Must-have
+     Input(s): Three generated posts with metadata (pillar, format type, image suggestion)
+     Output(s)/Result: A single Telegram message delivered to the configured chat ID
+     Business Rules:
+       - Message format: single message with clear section headers per platform (🐦 X, 💼 LinkedIn, 🧵 Threads), each showing post text, pillar label, format type, and image suggestion, separated by horizontal dividers, with a footer showing generation metadata (date, pillar, promo ratio)
+       - Image suggestions: short text description per post (e.g., "Screenshot of terminal output showing CLI help") — no image generation, just a human-actionable description
+       - On delivery failure: retry up to 3 times with exponential backoff; on final failure log to errors.log and exit with non-zero status
+     Edge Cases:
+       - Telegram Bot token or chat ID invalid → exit with descriptive error on first attempt
+       - Message exceeds Telegram's message size limit → split into multiple messages by platform section
+
+   Feature 4:
+     Feature Name: Telegram Bot Commands
+     Description: The Telegram bot responds to three interactive commands sent by the user in the chat.
+     User(s): Solo Developer
+     Priority: Must-have
+     Input(s): Bot command from Telegram chat
+     Output(s)/Result: Depends on command (see below)
+     Business Rules:
+       - /generate → triggers a full generation run (same as CLI `generate` command) and sends the result to the chat
+       - /regenerate → prompts the user to pick one platform (X, LinkedIn, or Threads) via inline buttons, then regenerates only that platform's post using the same pillar/day logic; updates the corresponding entry in history.json
+       - /status → returns today's pillar, promotional ratio over the last 14 days, total posts generated to date, and last generation timestamp
+     Edge Cases:
+       - /regenerate called before any generation has occurred today → respond with message: "No posts generated today yet. Use /generate first."
+       - /generate called multiple times in one day → allowed; each run appends to history (user discretion)
+
+   Feature 5:
+     Feature Name: CLI Interface
+     Description: Command-line interface for running Postware operations directly from the terminal.
+     User(s): Solo Developer
+     Priority: Must-have
+     Input(s): CLI command and optional flags
+     Output(s)/Result: Depends on command
+     Business Rules:
+       - `python -m postware generate` → one-shot generation run; ideal for cron jobs
+       - `python -m postware start` → long-running daemon mode using APScheduler; runs generation on a configurable daily schedule
+       - `python -m postware status` → prints today's pillar, promo ratio, total posts, last generation timestamp to terminal
+       - `python -m postware init` → generates a starter config.yaml with placeholder values, creates .env from .env.example, creates empty history.json with default structure, and prints a setup checklist to the terminal guiding the user to fill in API keys and project details
+     Edge Cases:
+       - `generate` called with missing or invalid config → exit with descriptive error and non-zero status before making any API calls
+       - `start` daemon interrupted (SIGINT/SIGTERM) → graceful shutdown with log message
+
+   Feature 6:
+     Feature Name: Scheduling
+     Description: Supports scheduled autonomous daily execution via external cron or built-in APScheduler daemon.
+     User(s): Solo Developer
+     Priority: Must-have
+     Input(s): Cron schedule (external) or APScheduler configuration (internal)
+     Output(s)/Result: Daily generation and Telegram delivery at the configured time
+     Business Rules:
+       - Cron mode: user sets up cron to call `python -m postware generate` at desired time
+       - Daemon mode: `python -m postware start` runs APScheduler with configurable daily trigger time
+       - Schedule time should be configurable in config.yaml
+     Edge Cases:
+       - Daemon crashes → relies on external process manager (systemd, supervisor) to restart; out of scope for Postware to self-heal
+
+   Feature 7:
+     Feature Name: LLM Flexibility Layer
+     Description: Uses LiteLLM as a unified interface to support multiple LLM providers and models, including cloud and local options.
+     User(s): Solo Developer
+     Priority: Must-have
+     Input(s): LLM configuration from config.yaml (provider, model, api_key, base_url, temperature, max_tokens)
+     Output(s)/Result: LLM completion response used by the content generation engine
+     Business Rules:
+       - Supported cloud providers: Anthropic (Claude), OpenAI (GPT-4o), Groq, Google (Gemini), and any other LiteLLM-supported provider
+       - Supported local providers: Ollama, LM Studio (via base_url override)
+       - Provider, model, and optional base_url configured in config.yaml
+       - API keys stored in .env file, loaded via python-dotenv
+       - All LLM calls go through litellm.completion()
+     Edge Cases:
+       - Local model server (Ollama) not running → connection error caught, retried 3 times, then logged and exit
+       - Unsupported provider string in config → exit with descriptive error listing supported providers
+
+5. USER FLOWS
+
+   Flow 1:
+     Flow Name: Daily Post Generation (CLI / Cron)
+     Actor: Solo Developer
+     Entry Point: User runs `python -m postware generate` or cron triggers it
+     Steps:
+       1. System loads config.yaml and validates all required fields
+       2. System loads .env for API keys and Telegram credentials
+       3. System loads history.json (creates with defaults if missing)
+       4. System determines today's day of week and maps to content pillar via weekly schedule
+       5. System checks recent pillar usage in history for rotation adjustments
+       6. System calculates promotional ratio from last 14 days of history
+       7. System constructs a rich LLM prompt including: project context, author info, milestones, changelog, selected pillar, platform-specific formatting rules, 80/20 guidance, and recent post summaries for deduplication
+       8. System calls litellm.completion() with the constructed prompt
+       9. LLM returns three platform-specific posts with metadata
+       10. System parses and validates the LLM output
+       11. System appends new posts summary to history.json and saves
+       12. System formats the Telegram message with platform headers, post text, pillar label, format type, image suggestions, and metadata footer
+       13. System sends the formatted message to Telegram
+       14. System prints success confirmation to terminal and exits with status code 0
+     Decision Points:
+       - Step 1: If config invalid → exit with error (step 14 skipped)
+       - Step 6: If promo ratio ≥ 20% → force value-driven content flag in prompt
+       - Step 8: If LLM call fails → retry up to 3 times; on final failure → log error, exit non-zero
+       - Step 13: If Telegram delivery fails → retry up to 3 times; on final failure → log error, exit non-zero
+     Error/Exception States:
+       - Missing/invalid config.yaml → descriptive error, exit code 1
+       - Missing API key in .env → descriptive error, exit code 1
+       - Corrupt history.json → back up, create fresh, log warning, continue
+       - LLM failure after 3 retries → log to errors.log, exit code 1
+       - Telegram failure after 3 retries → log to errors.log, exit code 1
+     Exit Point: Success: Telegram message delivered, terminal confirmation printed, exit code 0 · Failure: Error logged, exit code 1
+
+   Flow 2:
+     Flow Name: Telegram Bot /regenerate
+     Actor: Solo Developer
+     Entry Point: User sends /regenerate in Telegram chat
+     Steps:
+       1. Bot receives /regenerate command
+       2. Bot checks if any posts were generated today (checks history.json for today's date)
+       3. Bot sends inline keyboard with three buttons: X, LinkedIn, Threads
+       4. User taps one platform button
+       5. System loads config and history context
+       6. System constructs LLM prompt for the selected platform only, using the same pillar/day logic
+       7. System calls litellm.completion()
+       8. System parses the regenerated post
+       9. System updates the corresponding platform entry in today's history record
+       10. System sends the regenerated post to Telegram with platform header and metadata
+     Decision Points:
+       - Step 2: No posts generated today → respond with "No posts generated today yet. Use /generate first." and stop
+       - Step 7: LLM failure → retry 3 times; on final failure → send error message to chat
+     Error/Exception States:
+       - No prior generation today → informative message, flow ends
+       - LLM failure → error message sent to Telegram chat
+     Exit Point: Regenerated single-platform post delivered to Telegram chat
+
+   Flow 3:
+     Flow Name: First-Time Setup (Init)
+     Actor: Solo Developer
+     Entry Point: User runs `python -m postware init`
+     Steps:
+       1. System checks if config.yaml already exists
+       2. System generates config.yaml with placeholder values
+       3. System copies .env.example to .env
+       4. System creates history.json with default empty structure
+       5. System prints a setup checklist to terminal: fill in API keys in .env, update project details in config.yaml, set up Telegram bot via BotFather, add bot token and chat ID
+       6. System exits with status code 0
+     Decision Points:
+       - Step 1: If config.yaml already exists → prompt user to confirm overwrite or skip
+     Error/Exception States:
+       - File system permission error → descriptive error, exit code 1
+     Exit Point: All starter files created, setup checklist printed
+
+6. NON-FUNCTIONAL REQUIREMENTS
+   Performance: Single-user CLI tool; LLM response time depends on provider (typically 5–30 seconds); total generation-to-delivery pipeline should complete within 60 seconds under normal conditions
+   Scalability: Single-user tool; no scaling requirements; history.json pruned to last 30 entries to prevent unbounded growth
+   Availability: Not applicable — runs on-demand or via cron on the user's own machine; no uptime SLA
+   Security: API keys (LLM providers, Telegram) stored in .env file excluded from version control via .gitignore; no user authentication (single-user local tool); no sensitive user data stored beyond post content; .env.example included with placeholder values only
+   Accessibility: Not applicable — CLI tool with terminal output; Telegram message formatting uses Unicode emoji and text dividers for readability
+   Internationalization: Not required; English only
+   Browser/Device Support: Any OS that supports Python 3.10+ (macOS, Linux, Windows); Telegram client on any device for receiving messages
+
+7. TECHNICAL CONSTRAINTS & PREFERENCES
+   Tech Stack:
+     Language: Python 3.10+
+     LLM Interface: LiteLLM
+     Telegram: python-telegram-bot
+     Configuration: PyYAML (config.yaml) + python-dotenv (.env)
+     Data Validation: Pydantic
+     Scheduling: APScheduler
+     Terminal Output: Rich
+     No database libraries (no SQLite, no ORM)
+   Architecture Style: Single-process CLI application (monolith); modular file structure with clear separation of concerns
+   Hosting/Deployment: Runs locally on the user's machine; scheduled via system cron or built-in daemon mode; no cloud deployment required
+   Existing Systems to Integrate:
+     - LLM APIs: Anthropic, OpenAI, Groq, Google, Ollama, LM Studio (via LiteLLM)
+     - Telegram Bot API: for message delivery and bot commands
+   Data Storage & Schema Notes:
+     - config.yaml: project metadata, author info, LLM settings, milestones, changelog (user-maintained)
+     - .env: API keys and Telegram credentials
+     - history.json: array of generation records, each containing: date, day_of_week, pillar, is_promotional (boolean), platform_posts (object with x, linkedin, threads text summaries), image_suggestions; max 30 entries retained
+   Authentication/Identity Provider: None — single-user local tool; API authentication handled via provider-specific API keys in .env
+   Project Structure:
+     postware/
+     ├── pyproject.toml
+     ├── .env.example
+     ├── config.yaml
+     ├── README.md
+     ├── history.json
+     ├── src/
+     │   └── postware/
+     │       ├── __init__.py
+     │       ├── main.py
+     │       ├── config.py
+     │       ├── generator.py
+     │       ├── prompts.py
+     │       ├── scheduler.py
+     │       ├── telegram_bot.py
+     │       ├── history.py
+     │       └── models.py
+     ├── tests/
+     └── scripts/
+   Dependencies (pyproject.toml): litellm, python-telegram-bot, pyyaml, python-dotenv, pydantic, apscheduler, rich
+
+8. UI/UX DIRECTION
+   Design System: Not applicable — CLI tool; terminal output styled with Rich library
+   Visual Style: Developer-friendly terminal output; clean, scannable Telegram messages with emoji headers and text dividers
+   Key Interaction Patterns: CLI commands with subcommands (generate, start, status, init); Telegram bot commands (/generate, /regenerate with inline keyboard, /status); copy-paste workflow from Telegram to social platforms
+   Navigation Model: CLI subcommands (flat structure); Telegram bot command menu
+   Responsive Strategy: Not applicable — terminal + Telegram client handle their own rendering
+   Critical Screens/Views:
+     - Terminal: generation success output with summary, status output, init checklist
+     - Telegram: daily post bundle message (primary view), /status response, /regenerate platform picker (inline keyboard), regenerated single-post message
+
+9. SCOPE & BOUNDARIES
+   In Scope:
+     - Content generation engine with LLM flexibility (cloud and local models)
+     - Five content pillars with weighted rotation and weekly schedule
+     - Platform-specific formatting for X, LinkedIn, and Threads
+     - 80/20 value-to-promotion ratio enforcement
+     - File-based post history and deduplication (history.json)
+     - Telegram delivery of formatted post bundles
+     - Telegram bot commands (/generate, /regenerate with platform picker, /status)
+     - CLI commands (generate, start, status, init)
+     - Cron-compatible one-shot mode and APScheduler daemon mode
+     - Image suggestions as text descriptions per post
+     - Error handling with retry and logging
+   Out of Scope:
+     - Direct posting to X, LinkedIn, Threads, or any social media API
+     - Social media analytics or engagement tracking
+     - Multi-user support or user accounts
+     - Web UI, dashboard, or any graphical interface
+     - AI image generation
+     - Post editing within Telegram (user copies text and posts manually)
+     - Database usage (SQLite or any database engine)
+     - Cloud deployment or hosted service
+   Assumptions:
+     - User has Python 3.10+ installed
+     - User has valid API keys for their chosen LLM provider
+     - User has created a Telegram bot via BotFather and knows their chat ID
+     - User has accounts on X, LinkedIn, and Threads for manual posting
+     - User is comfortable editing YAML and .env files
+     - For local models (Ollama): user has Ollama installed and the desired model pulled
+   Dependencies:
+     - LiteLLM library and its support for the user's chosen provider
+     - Telegram Bot API availability
+     - LLM provider API availability (or local model server running)
+
+10. SUCCESS METRICS
+    Primary KPI: Daily generation consistency — percentage of days in a rolling 30-day window where posts were successfully generated and delivered to Telegram
+    Secondary KPIs:
+      - Content diversity score: distribution of pillar usage over 30 days compared to target weights (P1 30%, P2 25%, P3 15%, P4 15%, P5 15%)
+      - Promotional ratio accuracy: actual promotional percentage vs. 20% target over rolling 14-day window
+    Target Values:
+      - Generation consistency: ≥ 90% (27+ out of 30 days)
+      - Pillar distribution: within ±5 percentage points of each pillar's target weight
+      - Promotional ratio: between 15% and 25% (centered on 20%)
+    Measurement Method: All metrics derived from history.json data; viewable via `python -m postware status` CLI command and /status Telegram bot command
+
+11. TERMINOLOGY & GLOSSARY
+    Content Pillar → One of five thematic categories that guide post content: P1 Build in Public (progress updates, behind-the-scenes), P2 Teaching (tutorials, tips, how-tos), P3 Opinions (hot takes, industry commentary), P4 Data & Results (metrics, benchmarks, outcomes), P5 Community (questions, engagement, shoutouts)
+    Pillar Weight → The target percentage of total posts allocated to each pillar over time (P1: 30%, P2: 25%, P3: 15%, P4: 15%, P5: 15%)
+    80/20 Rule → Content strategy constraint: 80% of posts must be value-driven (educational, insightful, community-oriented); 20% may be promotional (direct product mentions, CTAs, launch announcements)
+    Promotional Post → A post whose primary intent is to promote the user's product, including calls to action, launch announcements, or direct product feature highlights
+    Value-Driven Post → A post whose primary intent is to educate, share insight, engage the community, or provide useful information, with no direct promotional call to action
+    Weekly Schedule → A fixed mapping of days of the week to content pillars that determines which pillar is used for generation on each day
+    Pillar Rotation → Logic that adjusts pillar selection based on recent usage history to maintain target weight distribution
+    history.json → A JSON file storing the last 30 generation records used for pillar rotation, deduplication, and promotional ratio tracking
+    config.yaml → The primary configuration file containing project metadata, author info, LLM settings, milestones, and changelog
+    Generation Run → A single execution of the content generation pipeline that produces three platform-specific posts
+    Image Suggestion → A short text description recommending a visual asset the user can create or capture to accompany a post (no AI image generation)
+    Daemon Mode → Long-running process using APScheduler that automatically triggers generation runs on a daily schedule
+    One-Shot Mode → Single execution of the generate command (designed for cron scheduling), which runs the pipeline once and exits

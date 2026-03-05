@@ -1,0 +1,147 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "postware"
+version = "0.1.0"
+description = "CLI tool for solo developers to auto-generate and deliver social media posts via Telegram"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Postware Contributors"}
+]
+keywords = [
+    "cli",
+    "social-media",
+    "telegram",
+    "llm",
+    "content-generation",
+    "indie-hackers",
+    "build-in-public",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Utilities",
+    "Typing :: Typed",
+]
+
+dependencies = [
+    # LiteLLM - Unified LLM interface for 13+ providers (FR-008: LLM flexibility)
+    "litellm>=1.0.0",
+    # python-telegram-bot - Telegram Bot API with async support (FR-005: Telegram delivery)
+    "python-telegram-bot>=20.0",
+    # PyYAML - YAML config file parsing (FR-007: Configuration)
+    "pyyaml>=6.0",
+    # python-dotenv - .env file loading for credentials (FR-007: Configuration)
+    "python-dotenv>=1.0.0",
+    # Pydantic v2 - Data validation with SecretStr for credentials (FR-007: Configuration)
+    "pydantic>=2.0",
+    # APScheduler - In-process cron scheduler (FR-006: start command)
+    "apscheduler>=3.10",
+    # Rich - Terminal formatting with panels, tables, progress bars (FR-006: CLI output)
+    "rich>=13.0.0",
+]
+
+[project.optional-dependencies]
+# Development dependencies - testing and security auditing
+dev = [
+    # pytest - Testing framework for CLI and async bot tests
+    "pytest>=8.0.0",
+    # pytest-asyncio - Async test support for Telegram bot handlers
+    "pytest-asyncio>=0.23.0",
+    # pip-audit - Dependency vulnerability scanning (F14: Security)
+    "pip-audit>=2.6.0",
+]
+
+# Windows-specific dependencies - ACL-based file permissions
+windows = [
+    # pywin32 - Windows ACL for file permission hardening (F13: Security)
+    "pywin32>=306",
+]
+
+[project.scripts]
+postware = "postware.main:main"
+
+[project.urls]
+Homepage = "https://github.com/postware/postware"
+Documentation = "https://github.com/postware/postware#readme"
+Repository = "https://github.com/postware/postware"
+Issues = "https://github.com/postware/postware/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+postware = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-v --tb=short"
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+follow_imports = "silent"
+ignore_missing_imports = true
+
+[tool.black]
+line-length = 88
+target-version = ["py310", "py311", "py312", "py313"]
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by black)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["postware"]
