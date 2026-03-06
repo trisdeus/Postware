@@ -436,4 +436,3 @@ def validate_output(parsed: dict[str, Any]) -> GeneratedBundle:
         raise LLMOutputError(
             f"Failed to validate LLM output against schema: {e}"
         ) from e
-```
