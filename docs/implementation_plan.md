@@ -48,7 +48,7 @@ graph TD
 ### Execution Order (Critical Path)
 
 | Phase | Tasks | Gate |
-|-------|-------|-------|
+| --- | --- | --- |
 | 1 — Dependency Floor | PW-001, PW-002, PW-003 | All data shapes defined |
 | 2 — Foundation Modules | PW-004, PW-005 | Config loads & validates; history reads/writes/prunes |
 | 3 — Prompt Construction | PW-006 | Prompts build without I/O |
@@ -255,7 +255,7 @@ Acceptance Criteria:
 
 ---
 
-```
+```text
 TASK: PW-006
 Objective: Implement LLM prompt construction and output format contract in prompts.py
 Priority: P0
@@ -294,7 +294,7 @@ Acceptance Criteria:
 
 ---
 
-```
+```text
 TASK: PW-007
 Objective: Implement LiteLLM call wrapper with error normalisation and JSON response parsing in generator.py
 Priority: P0
@@ -331,7 +331,7 @@ Acceptance Criteria:
 
 ---
 
-```
+```text
 TASK: PW-008
 Objective: Implement full generation pipeline orchestration with pillar resolution, promo enforcement, and v0 single-attempt call in generator.py
 Priority: P0
@@ -376,7 +376,7 @@ Acceptance Criteria:
 
 ---
 
-```
+```text
 TASK: PW-009
 Objective: Implement Telegram message formatting and delivery (send_bundle) in telegram_bot.py
 Priority: P0
@@ -414,7 +414,7 @@ Acceptance Criteria:
 
 ---
 
-```
+```text
 TASK: PW-010
 Objective: Implement CLI entrypoint shell with argparse, shared logger setup, and Python version check in main.py
 Priority: P0
@@ -454,7 +454,7 @@ Acceptance Criteria:
 
 ---
 
-```
+```text
 TASK: PW-011
 Objective: Wire the generate CLI subcommand end-to-end in main.py
 Priority: P0
@@ -502,7 +502,7 @@ Acceptance Criteria:
 
 ---
 
-```
+```text
 TASK: PW-012
 Objective: Implement the status CLI subcommand in main.py
 Priority: P0
@@ -539,7 +539,7 @@ Acceptance Criteria:
 
 ---
 
-```
+```text
 TASK: PW-013
 Objective: Implement the init CLI subcommand for file scaffolding in main.py
 Priority: P0
@@ -581,7 +581,7 @@ Acceptance Criteria:
 ## Test Case Mapping Summary
 
 | Test Case | Description | Unlocked By |
-|---|---|---|
+| --- | --- | --- |
 | T-01 | Missing config.yaml → exit 1, clear error, zero API calls | PW-004, PW-010, PW-011 |
 | T-02 | Promo ratio ≥ 20% → is_promotional forced False | PW-001, PW-008, PW-011 |
 | T-03 | Malformed JSON on attempts 1-2, valid on 3 → success | **v1 only** (requires retry logic, F8) |
@@ -603,7 +603,7 @@ Acceptance Criteria:
 ## Complexity Summary
 
 | Complexity | Count | Tasks |
-|---|---|---|
+| --- | --- | --- |
 | S (Small) | 3 | PW-003, PW-012, PW-013 |
 | M (Medium) | 8 | PW-001, PW-002, PW-004, PW-005, PW-006, PW-007, PW-009, PW-010 |
 | L (Large) | 2 | PW-008, PW-011 |

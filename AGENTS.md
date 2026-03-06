@@ -33,7 +33,7 @@
 ## Technology Stack
 
 | Layer | Technology | Version Constraint | Justification |
-|-------|-----------|-------------------|---------------|
+| --- | --- | --- | --- |
 | Language | Python | ≥3.10 | Target persona is comfortable with Python; structural pattern matching and modern type hints required; broadest developer machine coverage |
 | LLM Interface | LiteLLM | Latest stable | Single unified `litellm.completion()` interface for 13+ providers; local model support via `base_url`; eliminates per-provider integration code |
 | Telegram | python-telegram-bot | ≥20.0 (async) | Native async/await; built-in inline keyboard management, handler routing, MarkdownV2 helpers, and long-polling loop |
@@ -156,7 +156,7 @@ postware/
 ### File Placement Rules
 
 | File Type | Location | Notes |
-|-------|-------|-------|
+| --- | --- | --- | --- |
 | Pydantic data models | `src/postware/models.py` | All models in one file; the dependency floor |
 | Config loading logic | `src/postware/config.py` | One module for both YAML and `.env` |
 | History read/write/query | `src/postware/history.py` | All `history.json` I/O here; nowhere else |
@@ -245,18 +245,21 @@ postware/
 **Purpose:** Write, maintain, and execute the full test suite covering all modules, all 12 critical test cases, and all BDD scenarios defined in the specification.
 
 **Inputs:**
+
 - Implemented module code from Developer Agent
 - 12 critical test cases (T-01 through T-12) from the Technical Architecture Document
 - BDD scenarios from the Backend Design Document (v0.2)
 - Error type hierarchy from the Technical Architecture Document
 
 **Outputs:**
+
 - Test files in `tests/unit/test_<module>.py` (one per source module) and `tests/integration/test_cli.py`
 - `conftest.py` with all shared fixtures
 - Coverage report showing ≥90% coverage on `models.py` and `history.py`; ≥80% on all other modules
 - Test run output confirming all tests pass before handing off to Reviewer Agent
 
 **Rules:**
+
 1. All 12 critical test cases (T-01 through T-12) must have corresponding test functions. No test case may be omitted or approximated.
 2. LiteLLM (`litellm.completion()`) and Telegram bot (`bot.send_message()`) must always be mocked via `unittest.mock`. No real API calls in any test.
 3. File system tests must use `pytest`'s `tmp_path` fixture. No test may read or write the real `history.json`, `config.yaml`, or `.env`.
@@ -275,16 +278,19 @@ postware/
 **Purpose:** Verify that all five v1 security measures are correctly implemented, non-bypassable, and consistent with the specifications in the Backend Design Document (v0.2), Section 10.
 
 **Inputs:**
+
 - Implemented `telegram_bot.py`, `config.py`, `prompts.py`, `main.py`, `platform_utils.py`
 - Shared logger configuration in `main.py`
 - Security specifications from BDD v0.2, Section 10 (10.1 through 10.7)
 - Test results for security-related test cases (T-08, T-09, T-11)
 
 **Outputs:**
+
 - Security review report identifying any non-conformance with the five security measures
 - Confirmed pass or explicit list of issues to be resolved by Developer Agent before merge
 
 **Rules:**
+
 1. **Telegram authorization (10.1):** Confirm that every bot command handler (`/generate`, `/regenerate`, `/status`) validates `update.effective_user.id` against `TELEGRAM_CHAT_ID` as the **first operation** before any application logic executes. Unauthorized senders must be silently discarded — verify that no response is sent and no LLM call is made.
 2. **Log redaction (10.2):** Confirm that `RedactionFilter` is attached to **both** the `StreamHandler` and the `FileHandler` at logger setup time. Verify the redaction replacement pairs cover all provider-specific API keys in `EnvConfig` and the Telegram bot token. Confirm `SecretStr` in `EnvConfig` provides a second independent layer.
 3. **Prompt sanitization (10.3):** Confirm `sanitize_for_prompt()` is called on all `AppConfig` string fields (`project.name`, `project.description`, `author.bio`, all `milestones` items, all `changelog` items) before any of these values appear in the LLM prompt. Verify the four sanitization rules: whitespace stripping, length truncation, injection pattern removal (`[removed]` replacement), and template delimiter escaping.
@@ -302,16 +308,19 @@ postware/
 **Purpose:** Review all code for correctness, adherence to coding standards, module boundary compliance, and readiness for the target version milestone (v0 or v1).
 
 **Inputs:**
+
 - All implemented and tested code from Developer Agent
 - Security review report from Security Reviewer Agent (v1 only)
 - Test coverage report from Tester Agent
 - This AGENTS.md coding standards and quality rules
 
 **Outputs:**
+
 - Line-level review comments for any standards violations, logic errors, or module boundary breaches
 - Explicit approval (all issues resolved) or rejection with required fixes before re-review
 
 **Rules:**
+
 1. No code may be approved if it violates the module dependency layering. Any import that creates a cycle or violates the layer order is a blocking issue.
 2. No code may be approved if it contains hardcoded API keys, bot tokens, model names, or base URLs. All such values must come from `AppConfig` or `EnvConfig`.
 3. No code may be approved if it uses `print()` for logging, bypasses the shared logger, or omits `logger.getLogger("postware")` for any log-level message.
@@ -328,7 +337,7 @@ postware/
 ## Development Workflow
 
 | Step | Agent | Action | Artifact |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | Planner | Decompose the target version milestone (v0 or v1) into ordered tasks with module assignments and acceptance criteria | Ordered task list with priorities and dependency graph |
 | 2 | Developer | Implement `models.py` first (dependency floor); all Pydantic models, enums, and error hierarchy | `models.py` with all data shapes passing `mypy --strict` |
 | 3 | Developer | Implement `config.py` and `history.py` (depend only on `models.py`) | Config loader with `ConfigError`; history manager with atomic writes and corruption recovery |
@@ -342,6 +351,7 @@ postware/
 | 11 | Reviewer | Review all code for standards compliance, module boundary correctness, and milestone readiness | Approved code or rejection with required fixes |
 
 ### Workflow Rules
+
 - No step may begin until the previous step's artifact is complete and verified.
 - The module implementation order in Steps 2–8 must be followed. `models.py` first, always.
 - If the Tester finds failures, control returns to the Developer Agent. No test may be skipped or marked as expected-failure without explicit justification.
@@ -355,7 +365,7 @@ postware/
 
 All tasks must use this structure:
 
-```
+```text
 TASK: [TASK-ID]
 Objective: [Single clear sentence describing what is implemented or fixed]
 Priority: [P0 | P1]
@@ -386,7 +396,7 @@ Acceptance Criteria:
 
 **Example task:**
 
-```
+```text
 TASK: POSTWARE-007
 Objective: Implement atomic history.json write with prune-to-30 enforcement in history.py
 Priority: P0
@@ -438,7 +448,7 @@ Acceptance Criteria:
 ### Naming Conventions
 
 | Element | Convention | Example |
-|---|---|---|
+| --- | --- | --- |
 | Module files | `snake_case.py` | `telegram_bot.py`, `platform_utils.py` |
 | Pydantic models | `PascalCase` | `GenerationRecord`, `AppConfig`, `PlatformPost` |
 | Pydantic enums | `PascalCase` | `Pillar`, `DayOfWeek` |
@@ -524,7 +534,7 @@ Acceptance Criteria:
 
 All agent outputs must include these sections:
 
-```
+```text
 ## Summary
 [One-paragraph description of what was done, which module was affected,
  and which acceptance criteria were met]
@@ -594,22 +604,26 @@ All agent outputs must include these sections:
 Postware is a local CLI tool with no cloud deployment. "Deployment" means the two operational modes a user runs on their own machine.
 
 **One-Shot Mode (cron):**
+
 - User sets up a system cron entry: `0 8 * * * cd /path/to/postware && python -m postware generate`
 - Cron mode relies on exit codes: code 0 = success, code 1 = failure. Cron job runners can be configured to send email on non-zero exit.
 - All terminal output in cron mode must be minimal — only the final outcome line (`✓` or `✗`). Progress indicators must be suppressed via `sys.stdout.isatty()` detection.
 
 **Daemon Mode (APScheduler):**
+
 - User runs `python -m postware start` under a process manager (systemd unit, supervisor config, or macOS launchd plist).
 - The daemon must handle `SIGINT` and `SIGTERM` with graceful shutdown (`scheduler.shutdown(wait=True)`).
 - If the daemon crashes, the process manager is responsible for restart. Postware does not attempt self-restart.
 - `misfire_grace_time=3600` ensures that a job missed due to laptop sleep executes when the machine wakes, within a 1-hour window.
 
 **Setup (init):**
+
 - `python -m postware init` is the only "deployment" step. It creates `config.yaml`, `.env`, and `history.json`; applies file permissions; runs the dependency audit; and prints the setup checklist.
 - The `init` command must be idempotent for `.env` and `history.json` (create if absent, skip if present). For `config.yaml`, the user must confirm overwrite `[y/N]` with `N` as the safe default.
 - After `init`, the user must complete the setup checklist manually (fill in API keys in `.env`, fill in project details in `config.yaml`, configure Telegram bot via BotFather).
 
 **Version upgrades:**
+
 - `history.json` schema must not have breaking changes between patch versions. Breaking schema changes increment the MAJOR version.
 - If a schema migration is required, `history.py` must detect the old version field and migrate in-place before use.
 - Users upgrade by running `pip install --upgrade postware` followed by `python -m postware status` to verify the tool is operational.
