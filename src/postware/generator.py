@@ -139,7 +139,7 @@ def call_llm(
         raise LLMCallError(f"Unexpected LLM error: {e}") from e
 
 
-def resolve_pillar(day_of_week: DayOfWeek, recent_pillars: list[Pillar]) -> Pillar:
+def resolve_pillar(day_of_week: DayOfWeek, recent_pillars: list[str]) -> Pillar:
     """
     Resolve the content pillar for a given day of week.
 
@@ -436,3 +436,4 @@ def validate_output(parsed: dict[str, Any]) -> GeneratedBundle:
         raise LLMOutputError(
             f"Failed to validate LLM output against schema: {e}"
         ) from e
+```
