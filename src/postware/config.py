@@ -21,6 +21,7 @@ Error Handling:
     - Missing required env vars -> lists each missing field
 """
 
+import os
 from pathlib import Path
 
 import yaml
@@ -115,7 +116,6 @@ def load_env() -> EnvConfig:
     missing_fields: list[str] = []
 
     for field in required_fields:
-        import os
         value = os.environ.get(field)
         if not value or value == "":
             missing_fields.append(field)
@@ -125,11 +125,17 @@ def load_env() -> EnvConfig:
             f"Missing required environment variables: {', '.join(missing_fields)}"
         )
 
-    # Build api_keys dict from known provider environment variables
-    import os
+    # Build api_keys dict from known provider environment variables.
+    #
+    # Cloud providers (anthropic, openai, groq, google, deepseek, qwen, minimax,
+    # kimi, z.ai) require API keys set via environment variables.
+    #
+    # Local model providers (ollama, lmstudio, custom) do NOT use API keys.
+    # They are configured via config.yaml using the llm.base_url field.
+    # These providers are intentionally excluded from this mapping.
     api_keys: dict[str, str] = {}
 
-    # Known provider environment variable prefixes
+    # Cloud provider environment variable mappings
     provider_env_vars = {
         "ANTHROPIC_API_KEY": "anthropic",
         "OPENAI_API_KEY": "openai",
