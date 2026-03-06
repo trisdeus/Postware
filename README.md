@@ -29,7 +29,7 @@ Postware is a Python CLI tool built for solo developers and indie hackers who ar
 ## Requirements
 
 | Requirement | Version |
-|---|---|
+|-------|-------|
 | Python | ≥ 3.10 |
 | Operating System | macOS, Linux, Windows |
 
@@ -110,7 +110,7 @@ A formatted bundle is delivered to your Telegram chat within 60 seconds. ✓
 
 Postware exposes four subcommands through `python -m postware` (or the `postware` script after installation):
 
-```
+```text
 postware <command> [options]
 ```
 
@@ -165,7 +165,7 @@ python -m postware init
 Postware reads configuration from two files in the project root:
 
 | File | Purpose | Committed? |
-|---|---|---|
+|-------|-------|-------|
 | `config.yaml` | Project details, LLM settings, schedule | ❌ No — user-maintained |
 | `.env` | API keys and Telegram credentials | ❌ No — secrets |
 | `.env.example` | Placeholder template for credentials | ✅ Yes |
@@ -231,7 +231,7 @@ ANTHROPIC_API_KEY=your_key_here
 Postware enforces a structured weekly schedule. Each day maps to one of five content pillars:
 
 | Day | Pillar | Focus |
-|---|---|---|
+|-------|-------|-------|
 | Monday | Build in Public | Progress, decisions, what you shipped |
 | Tuesday | Teaching | Tutorials, tips, how-tos |
 | Wednesday | Opinions | Hot takes, contrarian views |

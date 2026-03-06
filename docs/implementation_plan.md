@@ -7,7 +7,7 @@ context
 
 ## Dependency Graph
 
-```mermaid
+```text
 graph TD
     PW001["PW-001<br/>models.py<br/>Enums & Base Models"]
     PW002["PW-002<br/>models.py<br/>Config Models"]
@@ -48,7 +48,7 @@ graph TD
 ### Execution Order (Critical Path)
 
 | Phase | Tasks | Gate |
-|---|---|---|
+|-------|-------|-------|
 | 1 — Dependency Floor | PW-001, PW-002, PW-003 | All data shapes defined |
 | 2 — Foundation Modules | PW-004, PW-005 | Config loads & validates; history reads/writes/prunes |
 | 3 — Prompt Construction | PW-006 | Prompts build without I/O |
@@ -62,7 +62,7 @@ graph TD
 
 ---
 
-```
+```text
 TASK: PW-001
 Objective: Define all Pydantic enums, PlatformPost, PlatformPosts, GeneratedBundle, and GenerationRecord models in models.py
 Priority: P0
@@ -104,7 +104,7 @@ Acceptance Criteria:
 
 ---
 
-```
+```text
 TASK: PW-002
 Objective: Define AppConfig, ProjectConfig, AuthorConfig, LLMConfig, ScheduleConfig, and EnvConfig Pydantic models in models.py
 Priority: P0
@@ -145,7 +145,7 @@ Acceptance Criteria:
 
 ---
 
-```
+```text
 TASK: PW-003
 Objective: Define the complete PostwareError exception hierarchy in models.py
 Priority: P0
@@ -179,7 +179,7 @@ Acceptance Criteria:
 
 ---
 
-```
+```text
 TASK: PW-004
 Objective: Implement config.yaml and .env loading with Pydantic validation in config.py
 Priority: P0
@@ -216,7 +216,7 @@ Acceptance Criteria:
 
 ---
 
-```
+```text
 TASK: PW-005
 Objective: Implement atomic history.json read/write/query/prune in history.py
 Priority: P0

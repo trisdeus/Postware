@@ -8,6 +8,7 @@
 **Target Users:** Solo software developers, indie hackers, and technical founders aged 25–40 who are actively building in public, comfortable with CLI tools and YAML configuration, and want to maintain a daily posting cadence across three platforms with zero daily writing effort.
 
 **Core Features:**
+
 - Content generation engine with five weighted content pillars (Build in Public, Teaching, Opinions, Data & Results, Community), weekly pillar schedule, and 80/20 value-to-promotion ratio enforcement
 - Platform-specific formatting for X (≤280 chars, casual tone), LinkedIn (≤1,500 chars, professional tone), and Threads (≤500 chars, conversational tone)
 - LiteLLM unified interface supporting cloud providers (Anthropic, OpenAI, Groq, Google, DeepSeek, Qwen, Minimax, Kimi, Z.ai) and local models (Ollama, LM Studio, custom endpoints)
@@ -19,6 +20,7 @@
 - Security measures: Telegram sender authorization, log redaction filter for API keys, prompt injection sanitization, file permission hardening (`0o600` on Unix; Windows ACLs), API key format validation, and dependency auditing via `pip-audit`
 
 **Constraints:**
+
 - No database libraries (no SQLite, no ORM) — `history.json` is the only persistent store
 - No web server, no port binding, no network-facing service
 - No direct posting to social media APIs — user copies and pastes manually
@@ -31,7 +33,7 @@
 ## Technology Stack
 
 | Layer | Technology | Version Constraint | Justification |
-|---|---|---|---|
+|-------|-----------|-------------------|---------------|
 | Language | Python | ≥3.10 | Target persona is comfortable with Python; structural pattern matching and modern type hints required; broadest developer machine coverage |
 | LLM Interface | LiteLLM | Latest stable | Single unified `litellm.completion()` interface for 13+ providers; local model support via `base_url`; eliminates per-provider integration code |
 | Telegram | python-telegram-bot | ≥20.0 (async) | Native async/await; built-in inline keyboard management, handler routing, MarkdownV2 helpers, and long-polling loop |
@@ -51,7 +53,7 @@
 
 **Pattern:** Modular Monolith — Single-Process CLI Application
 
-```
+```text
 ┌──────────────────────────────────────────────────────────────────┐
 │                        PROCESS BOUNDARY                          │
 │                                                                  │
@@ -98,6 +100,7 @@
 ```
 
 **Dependency layering rule (strict, no exceptions):**
+
 - `models.py` has zero internal imports — it is the dependency floor
 - `config.py` and `history.py` import only `models.py`
 - `prompts.py` imports only `models.py` — no network calls, no file I/O
@@ -112,7 +115,7 @@
 
 ## Repository Structure
 
-```
+```text
 postware/
 ├── pyproject.toml
 ├── .env.example
@@ -153,7 +156,7 @@ postware/
 ### File Placement Rules
 
 | File Type | Location | Notes |
-|---|---|---|
+|-------|-------|-------|
 | Pydantic data models | `src/postware/models.py` | All models in one file; the dependency floor |
 | Config loading logic | `src/postware/config.py` | One module for both YAML and `.env` |
 | History read/write/query | `src/postware/history.py` | All `history.json` I/O here; nowhere else |
@@ -178,17 +181,20 @@ postware/
 **Purpose:** Decompose feature requests and version milestones into ordered, atomic development tasks mapped to specific modules and acceptance criteria.
 
 **Inputs:**
+
 - Feature description, user story, or bug report
 - Current version target (v0 = P0 features only; v1 = P0 + P1 features)
 - PRD feature prioritization table (P0 Must / P1 Should)
 - Module architecture and dependency layering from this AGENTS.md
 
 **Outputs:**
+
 - Ordered task list with priorities (P0, P1) and complexity estimates (S, M, L, XL)
 - Dependency graph between tasks — no task may begin before its dependency is complete
 - Per-task specification: which module is affected, which files are created or modified, what the acceptance criterion is
 
 **Rules:**
+
 1. Every task must target exactly one module (e.g., `history.py`, `generator.py`). Tasks that span multiple modules must be split.
 2. v0 tasks must be planned and completed before any v1 task begins. v0 exit criterion: `python -m postware generate` runs end-to-end with posts delivered to Telegram, history updated, and errors logged.
 3. Every task must specify which of the 12 critical test cases (T-01 through T-12) it unlocks or satisfies.
@@ -205,17 +211,20 @@ postware/
 **Purpose:** Implement all application modules in strict conformance with the technical architecture, module dependency rules, and coding standards defined in this document.
 
 **Inputs:**
+
 - Task specification from Planner Agent (module, files, acceptance criterion)
 - Module architecture and dependency layering rules from this AGENTS.md
 - Data schema definitions (`GenerationRecord`, `AppConfig`, `EnvConfig`, `GeneratedBundle`, `PlatformPost`)
 - BDD scenarios for the feature being implemented
 
 **Outputs:**
+
 - Implemented module code passing all linting, formatting, and type-checking gates
 - Updated `pyproject.toml` if new dependencies are introduced
 - Inline docstrings for all public functions
 
 **Rules:**
+
 1. Never import a module that violates the dependency layering: `models.py` has zero internal imports; `config.py` and `history.py` import only `models.py`; `prompts.py` imports only `models.py`; `generator.py` imports config, history, prompts, models; `telegram_bot.py` imports generator, history, models; `main.py` imports everything. Circular imports are a blocking error.
 2. Never use a database library. All persistence goes through `history.py` using the JSON flat file pattern. Atomic writes must use `os.replace()` via a `.tmp` file.
 3. All LiteLLM exceptions must be caught in `generator.py` and re-raised as internal `LLMCallError` instances. No LiteLLM exception types may leak into the orchestration layer.
