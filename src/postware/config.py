@@ -26,7 +26,7 @@ from pathlib import Path
 
 import yaml
 from dotenv import load_dotenv
-from pydantic import ValidationError
+from pydantic import SecretStr, ValidationError
 
 from postware.models import AppConfig, ConfigError, EnvConfig
 
@@ -91,7 +91,7 @@ def load_env() -> EnvConfig:
         This is typically the project root where postware is run.
 
     Returns:
-        Validated EnvConfig instance.
+        Validated EnvConfig instance with SecretStr-wrapped credentials.
 
     Raises:
         ConfigError: If the .env file cannot be loaded or validated.
@@ -133,7 +133,7 @@ def load_env() -> EnvConfig:
     # Local model providers (ollama, lmstudio, custom) do NOT use API keys.
     # They are configured via config.yaml using the llm.base_url field.
     # These providers are intentionally excluded from this mapping.
-    api_keys: dict[str, str] = {}
+    api_keys: dict[str, SecretStr] = {}
 
     # Cloud provider environment variable mappings
     provider_env_vars = {
@@ -151,12 +151,12 @@ def load_env() -> EnvConfig:
     for env_var, provider in provider_env_vars.items():
         value = os.environ.get(env_var)
         if value:
-            api_keys[provider] = value
+            api_keys[provider] = SecretStr(value)
 
     # Validate with Pydantic
     try:
         return EnvConfig(
-            telegram_bot_token=os.environ.get("TELEGRAM_BOT_TOKEN", ""),
+            telegram_bot_token=SecretStr(os.environ.get("TELEGRAM_BOT_TOKEN", "")),
             telegram_chat_id=os.environ.get("TELEGRAM_CHAT_ID", ""),
             api_keys=api_keys,
         )
